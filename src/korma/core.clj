@@ -573,11 +573,12 @@
 
 (defn rel [ent sub-ent type opts]
   (let [var-name (-> sub-ent meta :name)
-        var-ns (-> sub-ent meta :ns)]
-    (assoc-in ent [:rel (name var-name)]
+        var-ns (-> sub-ent meta :ns)
+        sub-ent-map (if (map? sub-ent) sub-ent)]
+    (assoc-in ent [:rel (or (if sub-ent-map (:name sub-ent-map)) (name var-name))]
               (delay
-               (let [resolved (ns-resolve var-ns var-name)
-                     sub-ent (when resolved (deref sub-ent))]
+               (let [resolved (or sub-ent-map (ns-resolve var-ns var-name))
+                     sub-ent (or sub-ent-map (when resolved (deref sub-ent)))]
                  (when-not (map? sub-ent)
                    (throw (Exception. (format "Entity used in relationship does not exist: %s" (name var-name)))))
                  (create-relation ent sub-ent type opts))))))
@@ -617,7 +618,7 @@
 
 (defn many-to-many-fn [ent sub-ent-var join-table opts]
   (let [opts (assoc opts
-               :join-table join-table
+               :join-table (if (map? join-table) (:name join-table) join-table)
                :lfk (delay (get opts :lfk (default-fk-name ent)))
                :rfk (delay (get opts :rfk (default-fk-name sub-ent-var))))]
     (rel ent sub-ent-var :many-to-many opts)))
